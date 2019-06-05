@@ -1,44 +1,40 @@
 package whatsapp;
 
-import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.Serializable;
 
 class Messages {
 
-	static class Text {
-		String message;
-
-		Text(String message) {
-			this.message = message;
-		}
-	}
-
-	static class File {
-		java.io.File file;
-
-		File(java.io.File file) {
-			this.file = file;
-		}
-	}
-
-	static class UserText {
+	static abstract class UserMessage<T> implements Serializable {
+		String sender;
 		String target;
-		String text;
+		T content;
+	}
 
-		UserText(String command) {
+	static UserMessage buildMessage(String s, String sender) throws FileNotFoundException {
+		return s.startsWith("text") ? new Text(s, sender) : new File(s, sender);
+	}
+
+	static class Text extends UserMessage<String> {
+
+		Text(String command, String sender) {
+			this.sender = sender;
 			String[] strings = command.split(" ");
-			this.target = strings[1];
-			this.text = strings[2];
+			target = strings[1];
+			content = strings[2];
 		}
 	}
 
-	static class UserFile {
-		String target;
-		java.io.File file;
+	static class File extends UserMessage<java.io.File> {
 
-		UserFile(String command) {
+		File(String command, String sender) throws FileNotFoundException {
+			this.sender = sender;
 			String[] strings = command.split(" ");
-			this.target = strings[1];
-			this.file = new java.io.File(strings[2]);
+			target = strings[1];
+			content = new java.io.File(strings[2]);
+			if (!content.exists()){
+				throw new FileNotFoundException(strings[2]);
+			}
 		}
 	}
 }

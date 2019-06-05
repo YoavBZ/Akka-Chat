@@ -8,7 +8,10 @@ import com.typesafe.config.ConfigFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 
+import java.io.FileNotFoundException;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.Scanner;
 
@@ -24,53 +27,35 @@ public class User extends AbstractActor {
 	 * Actor behaviour when connected to server
 	 */
 	private Receive connected = receiveBuilder()
-			.matchEquals("disconnect", this::disconnectHandler)
+			.matchEquals("disconnect", this::disconnectCmdHandler)
 			.match(Connection.DisconnectResponse.class, this::disconnectResponseHandler)
-			.match(String.class, s -> s.startsWith("text"), this::userTextHandler)
-			.match(String.class, s -> s.startsWith("file"), this::userFileHandler)
+			.match(String.class, s -> s.startsWith("text") || s.startsWith("file"), this::userMsgCmdHandler)
+			.match(Messages.Text.class, this::textHandler)
+			.match(Messages.File.class, this::fileHandler)
 			.build();
 
 	/**
 	 * Actor behaviour when disconnected to server
 	 */
 	private Receive disconnected = receiveBuilder()
-			.match(String.class, s -> s.startsWith("connect"), this::connectHandler)
+			.match(String.class, s -> s.startsWith("connect"), this::connectCmdHandler)
 			.match(ActorIdentity.class, this::identityHandler)
 			.match(Connection.ConnectResponse.class, this::connectResponseHandler)
 			.build();
 
-	public User(String username) {
-		log.info("Constructing user: " + username);
-		this.username = username;
-	}
-
-	private void userTextHandler(String s) {
-		Messages.UserText message = new Messages.UserText(s);
-		Timeout t = Timeout.create(Duration.ofSeconds(10));
-		Future<Object> f = ask(server, new ActorRefRequest(message.target), t);
+	private void userMsgCmdHandler(String s) {
 		try {
-			ActorRef ref = (ActorRef) Await.result(f, t.duration());
-			if (ref != null) {
-				ref.tell(new Messages.Text(message.text), self());
+			Messages.UserMessage message = Messages.buildMessage(s, username);
+			Timeout t = Timeout.create(Duration.ofSeconds(10));
+			Future<Object> f = ask(server, new ActorRefRequest(message.target), t);
+			GetActorRef actorRef = (GetActorRef) Await.result(f, t.duration());
+			if (actorRef != null) {
+				actorRef.ref.tell(message, self());
 			} else {
 				log.info("{} does not exist!", message.target);
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	private void userFileHandler(String s) {
-		Messages.UserFile message = new Messages.UserFile(s);
-		Timeout t = Timeout.create(Duration.ofSeconds(10));
-		Future<Object> f = ask(server, new ActorRefRequest(message.target), t);
-		try {
-			ActorRef ref = (ActorRef) Await.result(f, t.duration());
-			if (ref != null) {
-				ref.tell(new Messages.File(message.file), self());
-			} else {
-				log.info("{} does not exist!", message.target);
-			}
+		} catch (FileNotFoundException e) {
+			log.info("{} does not exist!", e.getMessage());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -110,7 +95,7 @@ public class User extends AbstractActor {
 		}
 	}
 
-	private void connectHandler(String s) {
+	private void connectCmdHandler(String s) {
 		username = s.split(" ")[1];
 		try {
 			getContext().actorSelection("akka.tcp://Server@127.0.0.1:2552/user/server")
@@ -120,12 +105,22 @@ public class User extends AbstractActor {
 		}
 	}
 
-	private void disconnectHandler(String s) {
+	private void disconnectCmdHandler(String s) {
 		if (server.isTerminated()) {
 			log.info("server is offline! try again later!");
 		} else {
 			server.tell(new Connection.DisconnectRequest(username), self());
 		}
+	}
+
+	private void textHandler(Messages.Text t) {
+		System.out.println(String.format("[%s][user][%s] %s",
+				DateTimeFormatter.ISO_DATE_TIME.format(LocalDateTime.now()), t.sender, t.content));
+	}
+
+	private void fileHandler(Messages.File f) {
+		System.out.println(String.format("[%s][user][%s] %s",
+				DateTimeFormatter.ISO_DATE_TIME.format(LocalDateTime.now()), f.sender, f.content.getAbsolutePath()));
 	}
 
 	/**
@@ -135,7 +130,7 @@ public class User extends AbstractActor {
 		ActorSystem system = ActorSystem.create("User", ConfigFactory.load());
 		String id = String.valueOf((int) (Math.random() * 100));
 		try {
-			ActorRef user = system.actorOf(Props.create(User.class, id));
+			ActorRef user = system.actorOf(Props.create(User.class), id);
 			Scanner scanner = new Scanner(System.in);
 			String command;
 			while ((command = scanner.nextLine()) != null)

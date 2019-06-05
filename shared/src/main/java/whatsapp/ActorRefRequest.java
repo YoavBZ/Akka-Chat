@@ -1,9 +1,11 @@
 package whatsapp;
 
-public class ActorRefRequest {
+import java.io.Serializable;
+
+class ActorRefRequest implements Serializable {
 	String username;
 
-	public ActorRefRequest(String username) {
+	ActorRefRequest(String username) {
 		this.username = username;
 	}
 }

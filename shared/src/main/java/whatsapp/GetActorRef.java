@@ -2,7 +2,9 @@ package whatsapp;
 
 import akka.actor.ActorRef;
 
-class GetActorRef {
+import java.io.Serializable;
+
+class GetActorRef implements Serializable {
 	ActorRef ref;
 
 	GetActorRef(ActorRef ref) {
