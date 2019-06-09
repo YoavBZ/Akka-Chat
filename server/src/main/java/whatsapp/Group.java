@@ -1,31 +1,39 @@
 package whatsapp;
 
-import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
-import akka.routing.Broadcast;
+import akka.actor.Cancellable;
 import akka.routing.BroadcastRoutingLogic;
 import akka.routing.Router;
 
-public class Group extends AbstractActor {
-	private final String adminName;
-	private final String groupName;
-	private final ActorRef actorRef;
-	private final Router router = new Router(new BroadcastRoutingLogic());
+import java.util.ArrayList;
+import java.util.HashMap;
 
-	public Group(String groupName, String adminName, ActorRef adminRef) {
-		this.groupName = groupName;
-		this.adminName = adminName;
-		this.actorRef = adminRef;
-		router.addRoutee(adminRef);
+public class Group {
+
+	final String admin;
+	ArrayList<String> coAdmins = new ArrayList<>();
+	ArrayList<String> users = new ArrayList<>();
+	HashMap<String, Muted> muted = new HashMap<>();
+	Router router;
+
+	Group(String admin, ActorRef adminRef) {
+		this.admin = admin;
+		users.add(admin);
+		router = new Router(new BroadcastRoutingLogic()).addRoutee(adminRef);
 	}
 
-	public Receive createReceive() {
-		return receiveBuilder()
-				.match(Requests.GroupMessage.class, this::messageHandler)
-				.build();
-	}
+	static class Muted {
+		String user;
+		long start;
+		long period;
+		Cancellable cancellable;
 
-	private void messageHandler(Requests.GroupMessage message) {
-		router.route(new Broadcast(message), self());
+
+		public Muted(String user, long start, long period, Cancellable cancellable) {
+			this.user = user;
+			this.start = start;
+			this.period = period;
+			this.cancellable = cancellable;
+		}
 	}
 }

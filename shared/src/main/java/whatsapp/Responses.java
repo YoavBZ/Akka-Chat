@@ -12,34 +12,32 @@ class Responses {
 	}
 
 	static class DisconnectResponse implements Serializable {
-		Boolean value;
+		boolean value;
 
 		DisconnectResponse(boolean value) {
 			this.value = value;
 		}
 	}
 
-	static class GroupMessageResponse implements Serializable {
-		Boolean value;
+	static class InviteResponse implements Serializable {
+		Boolean approved;
+		String sender;
+		String groupName;
+		String targetUser;
 
-		GroupMessageResponse(boolean value) {
-			this.value = value;
+		InviteResponse(Boolean approved, String sender, String groupName, String targetUser) {
+			this.approved = approved;
+			this.sender = sender;
+			this.groupName = groupName;
+			this.targetUser = targetUser;
 		}
 	}
 
-	static class CreateGroupResponse implements Serializable {
-		Boolean value;
+	static class MuteTimedUp implements Serializable {
+		String group;
 
-		CreateGroupResponse(boolean value) {
-			this.value = value;
-		}
-	}
-
-	static class ActorRefResponse implements Serializable {
-		akka.actor.ActorRef ref;
-
-		ActorRefResponse(akka.actor.ActorRef ref) {
-			this.ref = ref;
+		MuteTimedUp(String group) {
+			this.group = group;
 		}
 	}
 }

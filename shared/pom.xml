@@ -16,14 +16,6 @@
         </plugins>
     </build>
 
-    <dependencies>
-        <dependency>
-            <groupId>atd192</groupId>
-            <artifactId>shared</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-    </dependencies>
-
     <parent>
         <groupId>atd192</groupId>
         <artifactId>assignment2</artifactId>

@@ -1,52 +1,25 @@
 package whatsapp;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.Serializable;
 
 class Requests {
 
-	static class CreateGroupRequest implements Serializable {
+	static class GroupCreate implements Serializable {
 		String groupName;
 		String admin;
 
-		CreateGroupRequest(String groupName, String admin) {
+		GroupCreate(String groupName, String admin) {
 			this.groupName = groupName;
 			this.admin = admin;
 		}
 	}
 
-	static abstract class GroupMessage<T> implements Serializable {
+	static class GroupLeave implements Serializable {
 		String sender;
-		String target;
-		T content;
-	}
+		String group;
 
-	static GroupMessage buildGroupMessage(String s, String sender) throws FileNotFoundException {
-		return s.startsWith("text ") ?
-				new GroupTextMessage(s.substring(5), sender) :
-				new GroupFileMessage(s.substring(5), sender);
-	}
-
-	static class GroupTextMessage extends GroupMessage<String> {
-
-		GroupTextMessage(String command, String sender) {
-			this.sender = sender;
-			target = command.substring(0, command.indexOf(' '));
-			content = command.substring(command.indexOf(' ') + 1);
-		}
-	}
-
-	static class GroupFileMessage extends GroupMessage<File> {
-
-		GroupFileMessage(String command, String sender) throws FileNotFoundException {
-			this.sender = sender;
-			String[] strings = command.split(" ");
-			target = strings[1];
-			content = new File(strings[2]);
-			if (!content.exists()) {
-				throw new FileNotFoundException(strings[2]);
-			}
+		GroupLeave(String group) {
+			this.group = group;
 		}
 	}
 
@@ -73,4 +46,87 @@ class Requests {
 			this.username = username;
 		}
 	}
+
+	static class GroupInvite implements Serializable {
+		String sender;
+		String groupName;
+		String targetUser;
+
+		GroupInvite(String cmd) {
+			String[] strings = cmd.split(" ");
+			this.groupName = strings[0];
+			this.targetUser = strings[1];
+		}
+	}
+
+	static class GroupRemove implements Serializable {
+		String sender;
+		String groupName;
+		String targetUser;
+
+		GroupRemove(String cmd) {
+			String[] strings = cmd.split(" ");
+			this.groupName = strings[0];
+			this.targetUser = strings[1];
+		}
+	}
+
+	static class AddUserToGroup implements Serializable {
+		String group;
+		String user;
+
+		AddUserToGroup(String group, String user) {
+			this.group = group;
+			this.user = user;
+		}
+	}
+
+	static abstract class CoAdminRequest implements Serializable {
+		String sender;
+		String group;
+		String user;
+	}
+
+	static class CoAdminAdd extends CoAdminRequest implements Serializable {
+		CoAdminAdd(String cmd) {
+			String[] strings = cmd.split(" ");
+			this.group = strings[0];
+			this.user = strings[1];
+		}
+	}
+
+	static class CoAdminRemove extends CoAdminRequest implements Serializable {
+		CoAdminRemove(String cmd) {
+			String[] strings = cmd.split(" ");
+			this.group = strings[0];
+			this.user = strings[1];
+		}
+	}
+
+	static class GroupMute implements Serializable {
+		String group;
+		String target;
+		long period;
+		String sender;
+
+		GroupMute(String cmd) {
+			String[] strings = cmd.split(" ");
+			this.group = strings[0];
+			this.target = strings[1];
+			this.period = Long.parseLong(strings[2]);
+		}
+	}
+
+	static class GroupUnMute implements Serializable {
+		String group;
+		String target;
+		String sender;
+
+		GroupUnMute(String cmd) {
+			String[] strings = cmd.split(" ");
+			this.group = strings[0];
+			this.target = strings[1];
+		}
+	}
+
 }
