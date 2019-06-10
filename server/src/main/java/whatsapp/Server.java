@@ -38,7 +38,6 @@ public class Server extends AbstractActor {
 				.match(GroupRemove.class, this::groupRemoveHandler)
 				.match(GroupMute.class, this::groupMuteHandler)
 				.match(GroupUnMute.class, this::groupUnMuteHandler)
-				.match(GroupRemove.class, this::groupRemoveHandler)
 				.match(AddUserToGroup.class, this::addUserToGroupHandler)
 				.match(CoAdminAdd.class, this::addCoAdminHandler)
 				.match(CoAdminRemove.class, this::removeCoAdminHandler)
@@ -96,7 +95,7 @@ public class Server extends AbstractActor {
 		if (groups.containsKey(request.groupName)) {
 			sender().tell(Boolean.FALSE, self());
 		} else {
-			Group group = new Group(request.admin, users.get(request.admin));
+			Group group = new Group(request.groupName, request.admin, users.get(request.admin));
 			groups.put(request.groupName, group);
 			sender().tell(Boolean.TRUE, self());
 		}
@@ -111,6 +110,7 @@ public class Server extends AbstractActor {
 		} else {
 			// User should be removed
 			group.users.remove(leave.sender);
+			group.router = group.router.removeRoutee(users.get(leave.sender));
 			group.muted.remove(leave.sender);
 			group.coAdmins.remove(leave.sender);
 			group.router.route(new Broadcast(
@@ -125,7 +125,9 @@ public class Server extends AbstractActor {
 	}
 
 	private void addUserToGroupHandler(AddUserToGroup add) {
-		groups.get(add.group).users.add(add.user);
+		Group group = groups.get(add.group);
+		group.users.add(add.user);
+		group.router = group.router.addRoutee(users.get(add.user));
 	}
 
 	private void addCoAdminHandler(CoAdminAdd add) {
@@ -181,6 +183,7 @@ public class Server extends AbstractActor {
 			group.coAdmins.remove(remove.targetUser);
 			group.muted.remove(remove.targetUser);
 			group.users.remove(remove.targetUser);
+			group.router = group.router.removeRoutee(users.get(remove.targetUser));
 			users.get(remove.targetUser).tell(remove, users.get(remove.sender));
 			sender().tell("", self());
 		}
@@ -250,6 +253,14 @@ public class Server extends AbstractActor {
 			group.users.remove(request.username);
 			group.coAdmins.remove(request.username);
 			group.muted.remove(request.username);
+			group.router = group.router.removeRoutee(users.get(request.username));
+			group.router.route(new Broadcast(
+					new GroupBroadcast(String.format("%s has left %s", request.username, group.name))), self());
+			if (group.admin.equals(request.username)) {
+				group.router.route(new Broadcast(
+						new GroupBroadcast(String.format("%s admin has closed %s!", group.name, group.name))), self());
+				groups.remove(group.name);
+			}
 		}
 		users.remove(request.username);
 		sender.tell(new DisconnectResponse(true), self());
