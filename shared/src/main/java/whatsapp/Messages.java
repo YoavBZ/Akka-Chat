@@ -16,14 +16,13 @@ class Messages {
 
 	static class UserTextMessage extends UserMessage<String> {
 
-		public UserTextMessage(String sender, String target, String content) {
+		UserTextMessage(String sender, String target, String content) {
 			this.sender = sender;
 			this.target = target;
 			this.content = content;
 		}
 
-		UserTextMessage(String command, String sender) {
-			this.sender = sender;
+		UserTextMessage(String command) {
 			target = command.substring(0, command.indexOf(' '));
 			content = command.substring(command.indexOf(' ') + 1);
 		}
@@ -31,8 +30,7 @@ class Messages {
 
 	static class UserFileMessage extends UserMessage<File> {
 
-		UserFileMessage(String command, String sender) throws FileNotFoundException {
-			this.sender = sender;
+		UserFileMessage(String command) throws FileNotFoundException {
 			target = command.substring(0, command.indexOf(' '));
 			String path = command.substring(command.indexOf(' ') + 1);
 			content = new File(path);
@@ -44,16 +42,14 @@ class Messages {
 
 	// -------------------- Group Messages ---------------------
 
-	static abstract class GroupMessage<T> implements Serializable {
-		String sender;
+	static abstract class GroupMessage<T> extends Requests.AbstractRequest implements Serializable {
 		String target;
 		T content;
 	}
 
 	static class GroupTextMessage extends GroupMessage<String> {
 
-		GroupTextMessage(String command, String sender) {
-			this.sender = sender;
+		GroupTextMessage(String command) {
 			target = command.substring(0, command.indexOf(' '));
 			content = command.substring(command.indexOf(' ') + 1);
 		}
@@ -61,13 +57,12 @@ class Messages {
 
 	static class GroupFileMessage extends GroupMessage<File> {
 
-		GroupFileMessage(String command, String sender) throws FileNotFoundException {
-			this.sender = sender;
-			String[] strings = command.split(" ");
-			target = strings[1];
-			content = new File(strings[2]);
+		GroupFileMessage(String command) throws FileNotFoundException {
+			target = command.substring(0, command.indexOf(' '));
+			String path = command.substring(command.indexOf(' ') + 1);
+			content = new File(path);
 			if (!content.exists()) {
-				throw new FileNotFoundException(strings[2]);
+				throw new FileNotFoundException(path);
 			}
 		}
 	}

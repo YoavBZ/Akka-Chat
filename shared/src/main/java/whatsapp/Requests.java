@@ -4,18 +4,20 @@ import java.io.Serializable;
 
 class Requests {
 
+	static abstract class AbstractRequest implements Serializable {
+		String sender;
+	}
+
 	static class GroupCreate implements Serializable {
 		String groupName;
 		String admin;
 
-		GroupCreate(String groupName, String admin) {
+		GroupCreate(String groupName) {
 			this.groupName = groupName;
-			this.admin = admin;
 		}
 	}
 
-	static class GroupLeave implements Serializable {
-		String sender;
+	static class GroupLeave extends AbstractRequest implements Serializable {
 		String group;
 
 		GroupLeave(String group) {
@@ -42,13 +44,11 @@ class Requests {
 	static class DisconnectRequest implements Serializable {
 		String username;
 
-		DisconnectRequest(String username) {
-			this.username = username;
+		DisconnectRequest() {
 		}
 	}
 
-	static class GroupInvite implements Serializable {
-		String sender;
+	static class GroupInvite extends AbstractRequest implements Serializable {
 		String groupName;
 		String targetUser;
 
@@ -59,8 +59,7 @@ class Requests {
 		}
 	}
 
-	static class GroupRemove implements Serializable {
-		String sender;
+	static class GroupRemove extends AbstractRequest implements Serializable {
 		String groupName;
 		String targetUser;
 
@@ -81,8 +80,7 @@ class Requests {
 		}
 	}
 
-	static abstract class CoAdminRequest implements Serializable {
-		String sender;
+	static abstract class CoAdminRequest extends AbstractRequest implements Serializable {
 		String group;
 		String user;
 	}
@@ -103,24 +101,22 @@ class Requests {
 		}
 	}
 
-	static class GroupMute implements Serializable {
+	static class GroupMute extends AbstractRequest implements Serializable {
 		String group;
 		String target;
-		long period;
-		String sender;
+		int period;
 
 		GroupMute(String cmd) {
 			String[] strings = cmd.split(" ");
 			this.group = strings[0];
 			this.target = strings[1];
-			this.period = Long.parseLong(strings[2]);
+			this.period = Integer.parseInt(strings[2]);
 		}
 	}
 
-	static class GroupUnMute implements Serializable {
+	static class GroupUnMute extends AbstractRequest implements Serializable {
 		String group;
 		String target;
-		String sender;
 
 		GroupUnMute(String cmd) {
 			String[] strings = cmd.split(" ");

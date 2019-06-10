@@ -57,9 +57,10 @@ public class Server extends AbstractActor {
 		} else if (!group.muted.containsKey(mute.target)) {
 			group.coAdmins.remove(mute.target);
 			// Setting up scheduler task
+			ActorRef self = self();
 			Cancellable cancellable = getContext().system().scheduler().
 					scheduleOnce(Duration.ofSeconds(mute.period), () -> {
-						users.get(mute.target).tell(new Responses.MuteTimedUp(mute.group), self());
+						users.get(mute.target).tell(new Responses.MuteTimedUp(mute.group), self);
 						group.muted.remove(mute.target);
 					}, getContext().dispatcher());
 
@@ -208,16 +209,19 @@ public class Server extends AbstractActor {
 
 	private void groupMsgHandler(GroupMessage message) {
 		Group group = groups.get(message.target);
-		if (group != null) {
+		if (group == null) {
+			sender().tell(String.format("%s does not exist!", message.target), self());
+		} else if (!group.users.contains(message.sender)) {
+			sender().tell(String.format("You are not part of %s!", message.target), self());
+		} else {
 			Group.Muted m = group.muted.get(message.sender);
 			if (m != null) {
 				sender().tell(String.format("You are muted for %d in %s!",
 						System.currentTimeMillis() - (m.start + m.period), message.target), self());
+			} else {
+				group.router.route(new Broadcast(message), users.get(message.sender));
+				sender().tell("", self());
 			}
-			group.router.route(new Broadcast(message), users.get(message.sender));
-			sender().tell(Boolean.TRUE, self());
-		} else {
-			sender().tell(Boolean.FALSE, self());
 		}
 	}
 

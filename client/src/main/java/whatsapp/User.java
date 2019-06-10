@@ -18,8 +18,13 @@ import static whatsapp.Utils.print;
 @SuppressWarnings("Duplicates")
 public class User extends AbstractActor {
 
+	private String ip;
 	private String username;
 	private ActorRef server;
+
+	public User(String ip) {
+		this.ip = ip;
+	}
 
 	/**
 	 * Actor behaviour when connected to server
@@ -28,14 +33,14 @@ public class User extends AbstractActor {
 			// Matching front-end command messages
 			.match(DisconnectRequest.class, this::disconnectCmdHandler)
 			.match(UserMessage.class, message -> message.sender == null, this::userMsgCmdHandler)
-			.match(GroupMessage.class, message -> message.sender == null, this::groupMsgCmdHandler)
-			.match(GroupInvite.class, invite -> invite.sender == null, this::groupInviteCmdHandler)
-			.match(GroupRemove.class, remove -> remove.sender == null, this::groupRemoveCmdHandler)
+			.match(GroupMessage.class, message -> message.sender == null, this::setSenderAskAndPrintResponse)
+			.match(GroupInvite.class, invite -> invite.sender == null, this::setSenderAskAndPrintResponse)
+			.match(GroupRemove.class, remove -> remove.sender == null, this::setSenderAskAndPrintResponse)
 			.match(GroupCreate.class, this::createGroupCmdHandler)
-			.match(CoAdminRequest.class, add -> add.sender == null, this::coAdminCmdHandler)
-			.match(GroupLeave.class, this::groupLeaveCmdHandler)
-			.match(GroupMute.class, mute -> mute.sender == null, this::groupMuteCmdHandler)
-			.match(GroupUnMute.class, unmute -> unmute.sender == null, this::groupUnMuteCmdHandler)
+			.match(CoAdminRequest.class, add -> add.sender == null, this::setSenderAskAndPrintResponse)
+			.match(GroupLeave.class, this::setSenderAskAndPrintResponse)
+			.match(GroupMute.class, mute -> mute.sender == null, this::setSenderAskAndPrintResponse)
+			.match(GroupUnMute.class, unmute -> unmute.sender == null, this::setSenderAskAndPrintResponse)
 			// Matching back-end messages (users/server responses)
 			.match(DisconnectResponse.class, this::disconnectResponseHandler)
 			.match(UserTextMessage.class, this::textHandler)
@@ -70,6 +75,14 @@ public class User extends AbstractActor {
 		return disconnected;
 	}
 
+	private void setSenderAskAndPrintResponse(AbstractRequest request) {
+		request.sender = username;
+		String response = (String) asker(server, request);
+		if (response != null && !response.equals("")) {
+			print(response);
+		}
+	}
+
 	private void createGroupCmdHandler(GroupCreate request) {
 		request.admin = username;
 		boolean succeeded = (boolean) asker(server, request);
@@ -80,29 +93,22 @@ public class User extends AbstractActor {
 		}
 	}
 
-	private void groupLeaveCmdHandler(GroupLeave leave) {
-		leave.sender = username;
-		String response = (String) asker(server, leave);
-		if (response != null && !response.equals("")) {
-			print(response);
-		}
-	}
-
 	private void connectCmdHandler(ConnectRequest request) {
 		username = request.username;
 		try {
-			getContext().actorSelection("akka.tcp://Server@127.0.0.1:2552/user/server")
+			getContext().actorSelection("akka.tcp://Server@" + ip + ":2552/user/server")
 					.tell(new Identify(username), self());
 		} catch (ActorNotFound e) {
 			print("server is offline!");
 		}
 	}
 
-	private void disconnectCmdHandler(DisconnectRequest r) {
+	private void disconnectCmdHandler(DisconnectRequest request) {
 		if (server.isTerminated()) {
 			print("server is offline! try again later!");
 		} else {
-			server.tell(new Requests.DisconnectRequest(username), self());
+			request.username = username;
+			server.tell(request, self());
 		}
 	}
 
@@ -113,54 +119,6 @@ public class User extends AbstractActor {
 			target.tell(message, self());
 		} else {
 			print("%s does not exist!", message.target);
-		}
-	}
-
-	private void groupMsgCmdHandler(GroupMessage message) {
-		message.sender = username;
-		boolean succeeded = (boolean) asker(server, message);
-		if (!succeeded) {
-			print("%s does not exist!", message.target);
-		}
-	}
-
-	private void groupInviteCmdHandler(GroupInvite invite) {
-		invite.sender = username;
-		String response = (String) asker(server, invite);
-		if (response != null && !response.equals("")) {
-			print(response);
-		}
-	}
-
-	private void groupRemoveCmdHandler(GroupRemove remove) {
-		remove.sender = username;
-		String response = (String) asker(server, remove);
-		if (response != null && !response.equals("")) {
-			print(response);
-		}
-	}
-
-	private void groupMuteCmdHandler(GroupMute mute) {
-		mute.sender = username;
-		String response = (String) asker(server, mute);
-		if (response != null && !response.equals("")) {
-			print(response);
-		}
-	}
-
-	private void groupUnMuteCmdHandler(GroupUnMute unmute) {
-		unmute.sender = username;
-		String response = (String) asker(server, unmute);
-		if (response != null && !response.equals("")) {
-			print(response);
-		}
-	}
-
-	private void coAdminCmdHandler(CoAdminRequest request) {
-		request.sender = username;
-		String response = (String) asker(server, request);
-		if (response != null && !response.equals("")) {
-			print(response);
 		}
 	}
 
@@ -186,7 +144,7 @@ public class User extends AbstractActor {
 			}
 		} catch (Exception ignored) {
 		}
-		print("[%s][%s][%s] %s",
+		print("[%s][%s][%s] File received: %s",
 				DateTimeFormatter.ISO_DATE_TIME.format(LocalDateTime.now()),
 				message.target,
 				message.sender,
@@ -220,7 +178,7 @@ public class User extends AbstractActor {
 	}
 
 	private void groupMuteHandler(GroupMute mute) {
-		print("You have been muted for %d in %s by %s!", mute.period, mute.group, mute.sender);
+		print("You have been muted for %d seconds in %s by %s!", mute.period, mute.group, mute.sender);
 	}
 
 	private void groupUnMuteHandler(GroupUnMute unmute) {
@@ -306,9 +264,22 @@ public class User extends AbstractActor {
 	 */
 	public static void main(String[] args) {
 		ActorSystem system =
-				ActorSystem.create("User", ConfigFactory.parseResources("user" + args[0] + ".conf"));
+				ActorSystem.create("User", ConfigFactory.parseString(String.format("akka {\n" +
+						"  loglevel = off\n" +
+						"  actor {\n" +
+						"    provider = \"akka.remote.RemoteActorRefProvider\"\n" +
+						"    warn-about-java-serializer-usage = false\n" +
+						"  }\n" +
+						"  remote {\n" +
+						"    enabled-transports = [\"akka.remote.netty.tcp\"]\n" +
+						"    netty.tcp {\n" +
+						"      hostname = \"%s\"\n" +
+						"      port = %s\n" +
+						"    }\n" +
+						"  }\n" +
+						"}", args[0], args[1])));
 		String id = String.valueOf((int) (Math.random() * 100));
-		ActorRef user = system.actorOf(Props.create(User.class), id);
+		ActorRef user = system.actorOf(Props.create(User.class, args[0]), id);
 		Scanner scanner = new Scanner(System.in);
 		String command;
 		while ((command = scanner.nextLine()) != null) {

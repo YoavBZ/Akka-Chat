@@ -31,19 +31,19 @@ class Utils {
 			if (cmd.startsWith("/user connect ")) {
 				return new Requests.ConnectRequest(cmd.substring(14));
 			} else if (cmd.equals("/user disconnect")) {
-				return new Requests.DisconnectRequest(null);
+				return new Requests.DisconnectRequest();
 			} else if (cmd.startsWith("/user text ")) {
-				return new Messages.UserTextMessage(cmd.substring(11), null);
+				return new Messages.UserTextMessage(cmd.substring(11));
 			} else if (cmd.startsWith("/user file ")) {
-				return new Messages.UserFileMessage(cmd.substring(11), null);
+				return new Messages.UserFileMessage(cmd.substring(11));
 			}
 		} else if (cmd.startsWith("/group")) {
 			if (cmd.startsWith("/group text ")) {
-				return new Messages.GroupTextMessage(cmd.substring(12), null);
+				return new Messages.GroupTextMessage(cmd.substring(12));
 			} else if (cmd.startsWith("/group file ")) {
-				return new Messages.GroupFileMessage(cmd.substring(12), null);
+				return new Messages.GroupFileMessage(cmd.substring(12));
 			} else if (cmd.startsWith("/group create ")) {
-				return new Requests.GroupCreate(cmd.substring(14), null);
+				return new Requests.GroupCreate(cmd.substring(14));
 			} else if (cmd.startsWith("/group leave ")) {
 				return new Requests.GroupLeave(cmd.substring(13));
 			} else if (cmd.startsWith("/group user invite ")) {
